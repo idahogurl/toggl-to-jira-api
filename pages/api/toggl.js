@@ -2,17 +2,18 @@ import fetch from 'node-fetch';
 import querystring from 'querystring';
 import { encode } from 'base-64';
 import dayjs from 'dayjs';
-import JiraClient from 'jira-client';
 import countdown from 'countdown';
 import cors from '../../lib/cors';
+import decodeOptions from '../../lib/decode-options';
+import { getJiraClient, getWorklogs } from './jira';
 
 const API_URL = 'https://api.track.toggl.com/api/v8/time_entries?';
-async function getEntries({ startDate, endDate }) {
+async function getEntries({ startDate, endDate, togglToken }) {
   const response = await fetch(
     API_URL + querystring.stringify({ start_date: startDate, end_date: endDate }),
     {
       headers: {
-        Authorization: `Basic ${encode(`${process.env.TOGGL_TOKEN}:api_token`)}`,
+        Authorization: `Basic ${encode(`${togglToken}:api_token`)}`,
       },
     },
   );
@@ -44,38 +45,19 @@ async function getEntries({ startDate, endDate }) {
   });
 }
 
-async function getWorklogs({ startDate, endDate }) {
-  const client = new JiraClient({
-    protocol: process.env.JIRA_PROTOCOL,
-    host: process.env.JIRA_HOST,
-    username: process.env.JIRA_ACCOUNT,
-    password: process.env.JIRA_TOKEN,
-  });
-
-  const assignee = 'Rebecca Vest';
-  const project = 'HLFE';
-  const start = dayjs(startDate).format('YYYY-MM-DD');
-  const end = dayjs(endDate).format('YYYY-MM-DD');
-  const { issues } = await client.searchJira(
-    `assignee = '${assignee}' AND project = '${project}' AND updatedDate >= '${start}' AND updatedDate <= '${end}' AND timespent > 0`,
-  );
-
-  return Promise.all(
-    issues.map((i) => client.getIssueWorklogs(i.key).then((result) => ({
-      issueId: i.key,
-      worklogs: result.worklogs.map(({ started, timeSpentSeconds }) => ({
-        started: dayjs(started).toISOString(),
-        timeSpentSeconds,
-      })),
-    }))),
-  );
-}
-
 export default async function handler(req, res) {
   await cors()(req, res);
+  const clientOptions = decodeOptions(req.headers);
   const { start_date: startDate, end_date: endDate } = req.query;
-  const entries = await getEntries({ startDate, endDate });
-  const issueWorklogs = await getWorklogs({ startDate, endDate });
+  const entries = await getEntries({ startDate, endDate, togglToken: clientOptions.togglToken });
+  const client = getJiraClient(clientOptions);
+  const issueWorklogs = await getWorklogs({
+    client,
+    entries,
+    startDate,
+    endDate,
+    author: clientOptions.jiraUser,
+  });
 
   // mark Toggl entries that already exist in Jira
   issueWorklogs.forEach((issue) => {
@@ -83,12 +65,12 @@ export default async function handler(req, res) {
       // match Toggl entry to worklog item
       const entryIndex = entries.findIndex(
         (e) => e.description === issue.issueId
-          && e.syncStatus === undefined
+          && e.synced === undefined
           && e.duration === log.timeSpentSeconds
           && e.start === log.started,
       );
       if (entryIndex !== -1) {
-        entries[entryIndex].syncStatus = 'done';
+        entries[entryIndex].synced = 'Yes';
       }
     });
   });

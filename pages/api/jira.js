@@ -1,23 +1,28 @@
 import JiraClient from 'jira-client';
-import { groupBy } from 'lodash';
+import { groupBy, uniq } from 'lodash';
+import dayjs from 'dayjs';
+import decodeOptions from '../../lib/decode-options';
 import cors from '../../lib/cors';
+
+export function getJiraClient(options) {
+  return new JiraClient({
+    protocol: options.jiraProtocol,
+    host: options.jiraHost,
+    username: options.jiraUsername,
+    password: options.jiraToken,
+  });
+}
 
 export default async function handler(req, res) {
   await cors()(req, res);
-
   const entries = JSON.parse(req.body);
   const entriesByIssue = groupBy(entries, 'issue');
-  const client = new JiraClient({
-    protocol: process.env.JIRA_PROTOCOL,
-    host: process.env.JIRA_HOST,
-    username: process.env.JIRA_ACCOUNT,
-    password: process.env.JIRA_TOKEN,
-  });
+
+  const clientOptions = decodeOptions(req.headers);
+  const client = getJiraClient(clientOptions);
+
   const worklogs = await Promise.all(
-    Object.keys(entriesByIssue).map((issue) => client.getIssueWorklogs(issue).then((result) => ({
-      issue,
-      worklogs: result.worklogs,
-    }))),
+    Object.keys(entriesByIssue).map((issue) => client.getIssueWorklogs(issue)),
   );
 
   const worklogsByIssue = groupBy(worklogs, 'issue');
@@ -27,7 +32,7 @@ export default async function handler(req, res) {
       .map((entry) => {
         const { issue, started, timeSpentSeconds } = entry;
         const issueWorklogs = worklogsByIssue[issue];
-        if (issueWorklogs.worklogs) {
+        if (issueWorklogs && issueWorklogs.worklogs) {
           const found = issueWorklogs.worklogs.find(
             (log) => log.started === started && log.timeSpentSeconds === timeSpentSeconds,
           );
@@ -48,4 +53,32 @@ export default async function handler(req, res) {
 
   res.statusCode = 201;
   res.end();
+}
+
+export async function getWorklogs({
+  client, entries, startDate, endDate, author,
+}) {
+  let projectFilter;
+  if (entries.length) {
+    const projects = uniq(entries.map((e) => e.description.split('-')[0]));
+    projectFilter = `AND project IN (${projects.join(',')})`;
+  }
+  const start = dayjs(startDate).subtract(1, 'week').format('YYYY-MM-DD');
+  const end = dayjs(endDate).add(1, 'day').format('YYYY-MM-DD');
+  const {
+    issues,
+  } = await client.searchJira(
+    `worklogAuthor = '${author}' ${projectFilter} AND updatedDate >= '${start}' AND updatedDate <= '${end}' AND timespent > 0`,
+    { fields: ['key'] },
+  );
+
+  return Promise.all(
+    issues.map((i) => client.getIssueWorklogs(i.key).then((result) => ({
+      issueId: i.key,
+      worklogs: result.worklogs.map(({ started, timeSpentSeconds }) => ({
+        started: dayjs(started).toISOString(),
+        timeSpentSeconds,
+      })),
+    }))),
+  );
 }
