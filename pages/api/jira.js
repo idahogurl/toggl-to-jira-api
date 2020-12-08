@@ -58,7 +58,7 @@ export default async function handler(req, res) {
 export async function getWorklogs({
   client, entries, startDate, endDate, author,
 }) {
-  let projectFilter;
+  let projectFilter = '';
   if (entries.length) {
     const projects = uniq(entries.map((e) => e.description.split('-')[0]));
     projectFilter = `AND project IN (${projects.join(',')})`;
