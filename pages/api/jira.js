@@ -3,6 +3,7 @@ import { groupBy, uniq } from 'lodash';
 import dayjs from 'dayjs';
 import decodeOptions from '../../lib/decode-options';
 import cors from '../../lib/cors';
+import errors from '../../lib/errors';
 
 export function getJiraClient(options) {
   return new JiraClient({
@@ -15,6 +16,7 @@ export function getJiraClient(options) {
 
 export default async function handler(req, res) {
   await cors()(req, res);
+  await errors()(req, res);
   const entries = JSON.parse(req.body);
   const entriesByIssue = groupBy(entries, 'issue');
 
