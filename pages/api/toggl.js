@@ -4,6 +4,7 @@ import { encode } from 'base-64';
 import dayjs from 'dayjs';
 import countdown from 'countdown';
 import cors from '../../lib/cors';
+import errors from '../../lib/errors';
 import decodeOptions from '../../lib/decode-options';
 import { getJiraClient, getWorklogs } from './jira';
 
@@ -47,6 +48,7 @@ async function getEntries({ startDate, endDate, togglToken }) {
 
 export default async function handler(req, res) {
   await cors()(req, res);
+  // await errors()(req, res);
   const clientOptions = decodeOptions(req.headers);
   const { start_date: startDate, end_date: endDate } = req.query;
   const entries = await getEntries({ startDate, endDate, togglToken: clientOptions.togglToken });
