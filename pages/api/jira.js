@@ -3,7 +3,7 @@ import { groupBy, uniq } from 'lodash';
 import dayjs from 'dayjs';
 import decodeOptions from '../../lib/decode-options';
 import cors from '../../lib/cors';
-import errors from '../../lib/errors';
+import onError from '../../lib/errors';
 
 export function getJiraClient(options) {
   return new JiraClient({
@@ -15,46 +15,49 @@ export function getJiraClient(options) {
 }
 
 export default async function handler(req, res) {
-  await cors()(req, res);
-  await errors()(req, res);
-  const entries = JSON.parse(req.body);
-  const entriesByIssue = groupBy(entries, 'issue');
+  try {
+    await cors()(req, res);
+    const entries = JSON.parse(req.body);
+    const entriesByIssue = groupBy(entries, 'issue');
 
-  const clientOptions = decodeOptions(req.headers);
-  const client = getJiraClient(clientOptions);
+    const clientOptions = decodeOptions(req.headers);
+    const client = getJiraClient(clientOptions);
 
-  const worklogs = await Promise.all(
-    Object.keys(entriesByIssue).map((issue) => client.getIssueWorklogs(issue)),
-  );
+    const worklogs = await Promise.all(
+      Object.keys(entriesByIssue).map((issue) => client.getIssueWorklogs(issue)),
+    );
 
-  const worklogsByIssue = groupBy(worklogs, 'issue');
+    const worklogsByIssue = groupBy(worklogs, 'issue');
 
-  await Promise.all(
-    entries
-      .map((entry) => {
-        const { issue, started, timeSpentSeconds } = entry;
-        const issueWorklogs = worklogsByIssue[issue];
-        if (issueWorklogs && issueWorklogs.worklogs) {
-          const found = issueWorklogs.worklogs.find(
-            (log) => log.started === started && log.timeSpentSeconds === timeSpentSeconds,
-          );
-          if (!found) {
-            return client.addWorklog(issue, {
-              started,
-              timeSpentSeconds,
-            });
+    await Promise.all(
+      entries
+        .map((entry) => {
+          const { issue, started, timeSpentSeconds } = entry;
+          const issueWorklogs = worklogsByIssue[issue];
+          if (issueWorklogs && issueWorklogs.worklogs) {
+            const found = issueWorklogs.worklogs.find(
+              (log) => log.started === started && log.timeSpentSeconds === timeSpentSeconds,
+            );
+            if (!found) {
+              return client.addWorklog(issue, {
+                started,
+                timeSpentSeconds,
+              });
+            }
           }
-        }
-        return client.addWorklog(issue, {
-          started,
-          timeSpentSeconds,
-        });
-      })
-      .filter((a) => a), // filter out undefined
-  );
+          return client.addWorklog(issue, {
+            started,
+            timeSpentSeconds,
+          });
+        })
+        .filter((a) => a), // filter out undefined
+    );
 
-  res.statusCode = 201;
-  res.end();
+    res.statusCode = 201;
+    res.end();
+  } catch (err) {
+    onError(err, req, res);
+  }
 }
 
 export async function getWorklogs({
