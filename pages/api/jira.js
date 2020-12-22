@@ -63,27 +63,26 @@ export default async function handler(req, res) {
 export async function getWorklogs({
   client, entries, startDate, endDate, author,
 }) {
-  let projectFilter = '';
   if (entries.length) {
-    const projects = uniq(entries.map((e) => e.description.split('-')[0]));
-    projectFilter = `AND project IN (${projects.join(',')})`;
-  }
-  const start = dayjs(startDate).subtract(1, 'week').format('YYYY-MM-DD');
-  const end = dayjs(endDate).add(1, 'day').format('YYYY-MM-DD');
-  const {
-    issues,
-  } = await client.searchJira(
-    `worklogAuthor = '${author}' ${projectFilter} AND updatedDate >= '${start}' AND updatedDate <= '${end}' AND timespent > 0`,
-    { fields: ['key'] },
-  );
+    const issueKeys = uniq(entries.map((e) => e.description));
+    const issueFilter = `AND issuekey IN (${issueKeys.join(',')})`;
 
-  return Promise.all(
-    issues.map((i) => client.getIssueWorklogs(i.key).then((result) => ({
-      issueId: i.key,
-      worklogs: result.worklogs.map(({ started, timeSpentSeconds }) => ({
-        started: dayjs(started).toISOString(),
-        timeSpentSeconds,
-      })),
-    }))),
-  );
+    const { issues } = await client.searchJira(
+      `worklogAuthor = '${author}' ${issueFilter} AND timespent > 0`,
+      {
+        fields: ['key'],
+      },
+    );
+
+    return Promise.all(
+      issues.map((i) => client.getIssueWorklogs(i.key).then((result) => ({
+        issueId: i.key,
+        worklogs: result.worklogs.map(({ started, timeSpentSeconds }) => ({
+          started: dayjs(started).toISOString(),
+          timeSpentSeconds,
+        })),
+      }))),
+    );
+  }
+  return Promise.resolve([]);
 }
