@@ -60,12 +60,10 @@ export default async function handler(req, res) {
   }
 }
 
-export async function getWorklogs({
-  client, entries, startDate, endDate, author,
-}) {
+export async function getWorklogs({ client, entries, author }) {
   if (entries.length) {
-    const issueKeys = uniq(entries.map((e) => e.description));
-    const issueFilter = `AND issuekey IN (${issueKeys.join(',')})`;
+    const issueKeys = uniq(entries.map((e) => e.description).filter((a) => a));
+    const issueFilter = issueKeys.length ? `AND issuekey IN (${issueKeys.join(',')})` : '';
 
     const { issues } = await client.searchJira(
       `worklogAuthor = '${author}' ${issueFilter} AND timespent > 0`,
