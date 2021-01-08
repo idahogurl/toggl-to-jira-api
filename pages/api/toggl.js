@@ -56,8 +56,6 @@ export default async function handler(req, res) {
     const issueWorklogs = await getWorklogs({
       client,
       entries,
-      startDate,
-      endDate,
       author: clientOptions.jiraUser,
     });
 
