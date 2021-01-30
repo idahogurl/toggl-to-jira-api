@@ -23,48 +23,66 @@ export default async function handler(req, res) {
     const clientOptions = decodeOptions(req.headers);
     const client = getJiraClient(clientOptions);
 
+    // issue may not exist in JIRA
+    const updatedIssues = [];
+    const failedIssues = [];
     const worklogs = await Promise.all(
-      Object.keys(entriesByIssue).map((issue) => client.getIssueWorklogs(issue)),
+      Object.keys(entriesByIssue).map(async (issue) => {
+        try {
+          const issueWorklogs = await client.getIssueWorklogs(issue);
+          updatedIssues.push(issue);
+
+          return { issue, ...issueWorklogs };
+        } catch (err) {
+          if (err.statusCode !== 404) {
+            throw err;
+          }
+          // issue does not exist
+          console.log(err.message);
+          failedIssues.push(issue);
+        }
+      }),
     );
 
-    const worklogsByIssue = groupBy(worklogs, 'issue');
-
     await Promise.all(
-      entries
-        .map((entry) => {
-          const { issue, started, timeSpentSeconds } = entry;
-          const issueWorklogs = worklogsByIssue[issue];
-          if (issueWorklogs && issueWorklogs.worklogs) {
-            const found = issueWorklogs.worklogs.find(
-              (log) => log.started === started && log.timeSpentSeconds === timeSpentSeconds,
-            );
-            if (!found) {
-              return client.addWorklog(issue, {
-                started,
-                timeSpentSeconds,
-              });
-            }
-          }
+      worklogs.filter(Boolean).map((log) => {
+        const { started, timeSpentSeconds } = log;
+        const found = entries.find(
+          (e) => log.started === started && log.timeSpentSeconds === timeSpentSeconds,
+        );
+        if (!found) {
           return client.addWorklog(issue, {
             started,
             timeSpentSeconds,
           });
-        })
-        .filter((a) => a), // filter out undefined
+        }
+      }),
     );
 
     res.statusCode = 201;
-    res.end();
+    res.send({ updatedIssues, failedIssues });
   } catch (err) {
     onError(err, req, res);
   }
 }
 
+function getIssueFilter(issueKeys) {
+  if (issueKeys.length) {
+    if (issueKeys.length === 1) {
+      return `AND issueKey === ${issueKeys[0]}`;
+    }
+    return `AND issuekey IN (${issueKeys.join(',')})`;
+  }
+  return '';
+}
+
 export async function getWorklogs({ client, entries, author }) {
   if (entries.length) {
-    const issueKeys = uniq(entries.map((e) => e.description).filter((a) => a));
-    const issueFilter = issueKeys.length ? `AND issuekey IN (${issueKeys.join(',')})` : '';
-
+    // lowercase key to avoid deleted issue error
+    const issueKeys = uniq(
+      entries.map((e) => e.description && e.description.toLowerCase()).filter(Boolean),
+    );
+    const issueFilter = getIssueFilter(issueKeys);
     const { issues } = await client.searchJira(
       `worklogAuthor = '${author}' ${issueFilter} AND timespent > 0`,
       {
@@ -73,7 +91,7 @@ export async function getWorklogs({ client, entries, author }) {
     );
 
     return Promise.all(
-      issues.map((i) => client.getIssueWorklogs(i.key).then((result) => ({
+      issues.map((i) => client.getIssueWorklogs(i.key.toLowerCase()).then((result) => ({
         issueId: i.key,
         worklogs: result.worklogs.map(({ started, timeSpentSeconds }) => ({
           started: dayjs(started).toISOString(),
