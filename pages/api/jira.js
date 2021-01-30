@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 function getIssueFilter(issueKeys) {
   if (issueKeys.length) {
     if (issueKeys.length === 1) {
-      return `AND issueKey === ${issueKeys[0]}`;
+      return `AND issueKey = ${issueKeys[0]}`;
     }
     return `AND issuekey IN (${issueKeys.join(',')})`;
   }
