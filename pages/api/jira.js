@@ -3,7 +3,7 @@ import { groupBy, uniq } from 'lodash';
 import dayjs from 'dayjs';
 import decodeOptions from '../../lib/decode-options';
 import cors from '../../lib/cors';
-import { log, onError } from '../../lib/rollbar';
+import { info, error } from '../../lib/rollbar';
 
 export function getJiraClient(options) {
   return new JiraClient({
@@ -48,10 +48,10 @@ export default async function handler(req, res) {
       worklogs.filter(Boolean).map((log) => {
         const { started, timeSpentSeconds } = log;
         const found = entries.find(
-          (e) => log.started === started && log.timeSpentSeconds === timeSpentSeconds,
+          (e) => e.started === started && e.timeSpentSeconds === timeSpentSeconds,
         );
         if (!found) {
-          return client.addWorklog(issue, {
+          return client.addWorklog(log, {
             started,
             timeSpentSeconds,
           });
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     res.statusCode = 201;
     res.send({ updatedIssues, failedIssues });
   } catch (err) {
-    onError(err, req, res);
+    error(err, req, res);
   }
 }
 
@@ -83,7 +83,10 @@ export async function getWorklogs({ client, entries, author }) {
       entries.map((e) => e.description && e.description.toLowerCase()).filter(Boolean),
     );
     const issueFilter = getIssueFilter(issueKeys);
-    const { issues } = await client.searchJira(issueFilter);
+    info(`Issue Filter: ${issueFilter}`);
+    const { issues } = await client.searchJira(issueFilter, {
+      fields: ['key'],
+    });
 
     return Promise.all(
       issues.map((i) => client.getIssueWorklogs(i.key.toLowerCase()).then((result) => ({
