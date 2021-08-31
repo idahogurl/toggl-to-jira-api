@@ -4,7 +4,7 @@ import { encode } from 'base-64';
 import dayjs from 'dayjs';
 import countdown from 'countdown';
 import cors from '../../lib/cors';
-import onError from '../../lib/errors';
+import { onError } from '../../lib/rollbar';
 import decodeOptions from '../../lib/decode-options';
 import { getJiraClient, getWorklogs } from './jira';
 

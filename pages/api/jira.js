@@ -3,7 +3,7 @@ import { groupBy, uniq } from 'lodash';
 import dayjs from 'dayjs';
 import decodeOptions from '../../lib/decode-options';
 import cors from '../../lib/cors';
-import onError from '../../lib/errors';
+import { log, onError } from '../../lib/rollbar';
 
 export function getJiraClient(options) {
   return new JiraClient({
@@ -83,12 +83,8 @@ export async function getWorklogs({ client, entries, author }) {
       entries.map((e) => e.description && e.description.toLowerCase()).filter(Boolean),
     );
     const issueFilter = getIssueFilter(issueKeys);
-    const { issues } = await client.searchJira(
-      `worklogAuthor = '${author}' ${issueFilter} AND timespent > 0`,
-      {
-        fields: ['key'],
-      },
-    );
+    log(`Issue filter: ${issueFilter}`);
+    const { issues } = await client.searchJira(issueFilter);
 
     return Promise.all(
       issues.map((i) => client.getIssueWorklogs(i.key.toLowerCase()).then((result) => ({
