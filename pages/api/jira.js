@@ -83,9 +83,7 @@ export async function getWorklogs({ client, entries, author }) {
       entries.map((e) => e.description && e.description.toLowerCase()).filter(Boolean),
     );
     const issueFilter = getIssueFilter(issueKeys);
-    const { issues } = await client.searchJira(`${issueFilter} AND timespent > 0`, {
-      fields: ['key'],
-    });
+    const { issues } = await client.searchJira(issueFilter);
 
     return Promise.all(
       issues.map((i) => client.getIssueWorklogs(i.key.toLowerCase()).then((result) => ({
