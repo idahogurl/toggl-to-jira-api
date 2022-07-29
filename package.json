@@ -11,22 +11,22 @@
     "base-64": "^1.0.0",
     "cors": "^2.8.5",
     "countdown": "^2.6.0",
-    "dayjs": "^1.9.5",
-    "jira-client": "^6.21.1",
+    "dayjs": "^1.11.4",
+    "jira-client": "^6.23.0",
     "lodash": "^4.17.21",
     "next": "9.5.4",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "react": "16.13.1",
     "react-dom": "16.13.1",
-    "rollbar": "^2.19.4"
+    "rollbar": "^2.25.0"
   },
   "devDependencies": {
     "eslint": "^6.8.0",
     "eslint-config-airbnb": "18.2.0",
-    "eslint-plugin-import": "^2.21.2",
-    "eslint-plugin-jsx-a11y": "^6.3.0",
-    "eslint-plugin-react": "^7.20.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.6.1",
+    "eslint-plugin-react": "^7.30.1",
     "eslint-plugin-react-hooks": "4.0.0",
-    "prettier": "^2.1.2"
+    "prettier": "^2.7.1"
   }
 }
