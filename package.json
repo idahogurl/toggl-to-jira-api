@@ -18,7 +18,7 @@
     "node-fetch": "^2.6.7",
     "react": "16.13.1",
     "react-dom": "16.13.1",
-    "rollbar": "^2.25.0"
+    "rollbar": "^2.25.2"
   },
   "devDependencies": {
     "eslint": "^8.23.0",
