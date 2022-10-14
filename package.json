@@ -12,7 +12,7 @@
     "cors": "^2.8.5",
     "countdown": "^2.6.0",
     "dayjs": "^1.11.4",
-    "jira-client": "^6.23.0",
+    "jira-client": "^8.2.0",
     "lodash": "^4.17.21",
     "next": "9.5.4",
     "node-fetch": "^2.6.7",
