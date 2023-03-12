@@ -15,7 +15,7 @@
     "jira-client": "^6.23.0",
     "lodash": "^4.17.21",
     "next": "9.5.4",
-    "node-fetch": "^2.6.7",
+    "node-fetch": "^3.3.1",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "rollbar": "^2.25.0"
