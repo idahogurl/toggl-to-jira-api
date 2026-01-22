@@ -13,7 +13,7 @@
     "countdown": "^2.6.0",
     "dayjs": "^1.11.4",
     "jira-client": "^6.23.0",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "next": "9.5.4",
     "node-fetch": "^2.6.7",
     "react": "16.13.1",
